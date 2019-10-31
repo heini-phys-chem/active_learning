@@ -35,7 +35,7 @@ from qml.kernels import get_gp_kernel
 from qml.kernels import get_symmetric_gp_kernel
 
 sigma  = 2.5
-num_it = 10
+num_it = 500
 
 def read_file(f):
 	lines = open(f, 'r').readlines()
@@ -51,14 +51,14 @@ def read_file(f):
 	return mols, energies
 
 def read():
-	alphas = np.load('alphas.npy',allow_pickle=True)
-	X      = np.load('X.npy',allow_pickle=True)
-	Q      = np.load('Q.npy',allow_pickle=True)
+	alphas = np.load('alphas_active_learning.npy',allow_pickle=True)
+	X      = np.load('X_active_learning.npy',allow_pickle=True)
+	Q      = np.load('Q_active_learning.npy',allow_pickle=True)
 
 	return alphas, X, Q
 
 def predict(mols, alphas, X, Q):
-	print(" -> Start predictions")
+	print("\n -> Start predictions")
 	start = time()
 	energies = np.array([])
 
@@ -71,7 +71,7 @@ def predict(mols, alphas, X, Q):
 
 	end = time()
 	total_runtime = end - start
-	print(" -> Prediction time: {:.3f}".format(total_runtime))
+	print("\n -> Prediction time: {:.3f}".format(total_runtime))
 
 	return energies
 
@@ -201,7 +201,7 @@ def train():
 
     print(end-start)
     print("")
-    print("Kernels ...")
+    print(" -> calculating Kernels")
 
     start = time()
     Kte = get_atomic_local_kernel(X_train,  X_train, Q_train,  Q_train,  SIGMA)
@@ -225,17 +225,17 @@ def train():
     print("")
 
     print("save X")
-    np.save('X.npy', X_train)
+    np.save('X_active_learning.npy', X_train)
 #    with open("X_mp2.cpickle", 'wb') as f:
 #      cPickle.dump(X_train, f, protocol=2)
 
     print("save alphas")
-    np.save('alphas.npy', alpha)
+    np.save('alphas_active_learning.npy', alpha)
 #    with open("alphas_mp2.cpickle", 'wb') as f:
 #      cPickle.dump(alpha, f, protocol=2)
 
     print("save Q")
-    np.save('Q.npy', Q_train)
+    np.save('Q_active_learning.npy', Q_train)
 #    with open("Q_mp2.cpickle", 'wb') as f:
 #      cPickle.dump(Q_train, f, protocol=2)
 
@@ -255,14 +255,16 @@ def train():
 
 
 def add_candidate(mol, energy):
+#	for i, mol in enumerate(mols):
 	f = open("train", 'a')
 	f.write(mol + " " + str(energy) + "\n")
 	f.close()
 
 	print(" -> added: {}".format(mol))
 
-def remove_from_mols(mols, index):
-	np.delete(mols, index)
+def remove_from_mols(mol, index):
+#	for i, mol in enumerate(mols):
+	np.delete(mol, index)
 
 	return mols
 
@@ -285,13 +287,13 @@ if __name__ == "__main__":
 
 		# calculate MAEs
 		for j, energy in enumerate(energies):
-			MAEs = np.append(np.abs(energy - mp2_energies[j]))
+			MAEs = np.append(MAEs, np.abs(energy - mp2_energies[j]))
 
 		# get mean of MAEs
 		mean = np.mean(MAEs)
 
 		# exit the loop of chemical accuracy (1kcal/mol) is reached
-		if mean < 1.0:
+		if mean < .6:
 			print("Chemical Accuracy reached ({:.4f} kcal/mol) with {:d} iterations".format(mean, i))
 			exit()
 
